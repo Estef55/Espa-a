@@ -1,0 +1,1 @@
+-- TODO: definir tablas y relaciones tras validar requisitos y flujo de campo.
