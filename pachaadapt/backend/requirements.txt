@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 pydantic-settings
 python-multipart
+pypdf>=4.0
+# OCR opcional: instalar pytesseract, pdf2image, Tesseract y Poppler por separado.

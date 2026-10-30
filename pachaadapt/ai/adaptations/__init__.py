@@ -1,0 +1,1 @@
+"""Adaptaciones educativas de PACHAADAPT."""
