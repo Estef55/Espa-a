@@ -5,7 +5,7 @@ def generate_quiz(text: str, count: int = 5) -> list[dict]:
     if not text or not text.strip():
         return []
     count = max(1, min(int(count), 20))
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\\s+", text) if len(s.split()) >= 5]
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.split()) >= 5]
     questions = []
     for i, sentence in enumerate(sentences[:count], 1):
         # Pregunta abierta basada en el contenido literal para evitar distractores falsos.

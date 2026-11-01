@@ -5,10 +5,10 @@ def simplify_text(text: str, max_words: int = 22) -> str:
     if not text or not text.strip():
         return ""
     # Divide por frases y, si son largas, por conectores/puntuación suave.
-    parts = re.split(r"(?<=[.!?;:])\\s+|\\n+", text.strip())
+    parts = re.split(r"(?<=[.!?;:])\s+|\n+", text.strip())
     output = []
     for part in parts:
-        part = re.sub(r"\\s+", " ", part).strip()
+        part = re.sub(r"\s+", " ", part).strip()
         if not part:
             continue
         words = part.split()
@@ -22,4 +22,4 @@ def simplify_text(text: str, max_words: int = 22) -> str:
             words = words[cut:]
         if words:
             output.append(" ".join(words))
-    return "\\n".join(output)
+    return "\n".join(output)

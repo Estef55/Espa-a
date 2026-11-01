@@ -21,8 +21,8 @@ def extract_pdf_text(source: Union[str, Path, bytes]) -> str:
         for index, page in enumerate(reader.pages, start=1):
             text = (page.extract_text() or "").strip()
             if text:
-                pages.append(f"[Página {index}]\\n{text}")
-        return "\\n\\n".join(pages).strip()
+                pages.append(f"[Página {index}]\n{text}")
+        return "\n\n".join(pages).strip()
     except ValueError:
         raise
     except Exception as exc:
