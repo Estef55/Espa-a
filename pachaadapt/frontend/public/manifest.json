@@ -1,8 +1,10 @@
 {
   "name": "PACHAADAPT by YACHAY",
   "short_name": "PACHAADAPT",
+  "description": "Plataforma educativa accesible con actividades offline.",
   "start_url": "/",
   "display": "standalone",
-  "description": "Plataforma educativa adaptable para contextos rurales.",
-  "icons": []
+  "background_color": "#f4f7f5",
+  "theme_color": "#205b79",
+  "lang": "es"
 }

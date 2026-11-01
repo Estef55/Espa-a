@@ -20,7 +20,7 @@ class AdaptationTests(unittest.TestCase):
 
     def test_easy_read_splits_long_sentences(self):
         text = " ".join(["palabra"] * 50)
-        self.assertGreater(simplify_text(text, 10).count("\\n"), 0)
+        self.assertGreater(simplify_text(text, 10).count("\n"), 0)
 
     def test_quiz_marks_teacher_review(self):
         quiz = generate_quiz("La fotosíntesis permite que las plantas produzcan su propio alimento.")

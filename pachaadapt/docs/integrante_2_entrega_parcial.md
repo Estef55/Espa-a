@@ -16,9 +16,8 @@ La API se monta bajo `/api/v1`:
 - `POST /materials/{material_id}/extract` — JSON opcional `{"ocr": true}`.
 - `POST /materials/{material_id}/adapt` — JSON `{"adaptation":"summary"}`, `{"adaptation":"easy_read"}` o `{"adaptation":"quiz","options":{"count":5}}`.
 
-Las adaptaciones se marcan para revisión docente; no deben publicarse directamente sin validación.
-Los archivos se guardan por defecto en `storage/materials/`, configurable con `PACHAADAPT_STORAGE_DIR`.
-Tamaño máximo por defecto: 25 MiB (`PACHAADAPT_MAX_UPLOAD_BYTES`).
+Las adaptaciones se marcan para revisión docente; no deben publicarse directamente sin validación. La API requiere una identidad docente configurada y oculta materiales de otros usuarios (en desarrollo local puede usarse `PACHAADAPT_I3_DEV_AUTH=1` junto con la cabecera `X-Dev-Teacher-Id`).
+Los originales se guardan por defecto en `storage/materials/`, configurable con `PACHAADAPT_STORAGE_DIR`; metadatos y texto extraído se registran en la base SQLite compartida mediante la migración `002_integrante2_materiales.sql`. El límite por defecto es 25 MiB (`PACHAADAPT_MAX_UPLOAD_BYTES`).
 
 ## Instalación y ejecución
 Desde `pachaadapt/`:

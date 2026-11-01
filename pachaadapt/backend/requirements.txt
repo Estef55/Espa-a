@@ -1,6 +1,10 @@
-fastapi
-uvicorn[standard]
-pydantic-settings
-python-multipart
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+pydantic-settings>=2.0
+python-multipart>=0.0.9
 pypdf>=4.0
-# OCR opcional: instalar pytesseract, pdf2image, Tesseract y Poppler por separado.
+pytest>=8.0
+httpx>=0.27
+# OCR opcional requiere pytesseract, pdf2image, Tesseract y Poppler por separado.
+

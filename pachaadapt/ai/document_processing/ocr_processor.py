@@ -17,5 +17,5 @@ def extract_scanned_pdf_text(source: Union[str, Path, bytes], languages: str = "
     for i, image in enumerate(images, 1):
         text = pytesseract.image_to_string(image, lang=languages).strip()
         if text:
-            chunks.append(f"[Página {i}]\\n{text}")
-    return "\\n\\n".join(chunks).strip()
+            chunks.append(f"[Página {i}]\n{text}")
+    return "\n\n".join(chunks).strip()
