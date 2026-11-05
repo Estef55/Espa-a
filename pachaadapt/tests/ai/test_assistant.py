@@ -2,6 +2,7 @@ import json
 import threading
 import time
 import unittest
+from io import BytesIO
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest.mock import patch
 from urllib.error import URLError
@@ -30,6 +31,16 @@ class _Handler(BaseHTTPRequestHandler):
             time.sleep(2)
         if mode == "http500":
             self.send_response(500); self.end_headers(); return
+        if mode == "http429":
+            self.send_response(429); self.end_headers(); return
+        if mode == "http401":
+            self.send_response(401); self.end_headers(); return
+        if mode == "http403":
+            self.send_response(403); self.end_headers(); return
+        if mode == "http404":
+            self.send_response(404); self.end_headers(); return
+        if mode == "http400":
+            self.send_response(400); self.end_headers(); return
         if mode == "garbage":
             payload = b"no es json"
         else:
@@ -96,6 +107,32 @@ class AssistantTests(TempContainerMixin, unittest.TestCase):
         with self.c.db.read() as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM i3_messages").fetchone()[0], 0)
 
+    def test_http_errors_close_response_body(self):
+        p = OpenAICompatibleProvider(self.url, "m-test", timeout=1)
+        upstream = __import__("urllib.error").error.HTTPError(
+            self.url, 500, "failure", {}, BytesIO(b"private upstream body"))
+        with patch("urllib.request.urlopen", side_effect=upstream):
+            with self.assertRaises(ProviderError):
+                p.generate([{"role": "user", "content": "hola"}], 10)
+        self.assertTrue(upstream.fp.closed)
+
+    def test_provider_authentication_and_model_errors_are_safe_and_actionable(self):
+        for mode, phrase in (("http401", "credencial"), ("http403", "permisos"),
+                             ("http404", "modelo o endpoint"), ("http400", "parámetros")):
+            with self.subTest(mode=mode):
+                _Handler.mode = mode
+                with self.assertRaises(ProviderError) as caught:
+                    self.c.assistant.chat("t1", "hola")
+                self.assertIn(phrase, str(caught.exception).lower())
+                self.assertNotIn("SECRET-KEY", str(caught.exception))
+
+    def test_rate_limit_has_safe_actionable_error(self):
+        _Handler.mode = "http429"
+        with self.assertRaises(ProviderError) as caught:
+            self.c.assistant.chat("t1", "hola")
+        self.assertIn("límite", str(caught.exception).lower())
+        self.assertNotIn("SECRET-KEY", str(caught.exception))
+
     def test_connection_refused_is_controlled(self):
         p = OpenAICompatibleProvider("http://127.0.0.1:9/v1", "m", timeout=1)
         with patch("urllib.request.urlopen", side_effect=URLError(ConnectionRefusedError("refused"))):
@@ -134,9 +171,21 @@ class AssistantTests(TempContainerMixin, unittest.TestCase):
         r = self.c.assistant.chat("t1", "resume", document_id=d["id"])
         self.assertTrue(r["document_context"]["truncated"])
 
+    def test_compatible_provider_aliases_select_the_configured_transport(self):
+        for provider_name in ("openai", "groq", "ollama", "openai_compatible"):
+            with self.subTest(provider=provider_name):
+                provider = build_provider(make_settings(
+                    self._tmp.name, ai_provider=provider_name, ai_base_url=self.url,
+                    ai_model="m-test", ai_api_key="test-only-key"))
+                result = provider.generate([{"role": "user", "content": "hola"}], 10)
+                self.assertEqual(result.provider, provider_name)
+                self.assertEqual(result.text, "Respuesta de prueba del servidor local")
+
     def test_build_provider_requires_full_config(self):
         self.assertIsInstance(build_provider(make_settings(self._tmp.name, ai_provider="openai_compatible")),
                               NotConfiguredProvider)
+        self.assertIsInstance(build_provider(make_settings(
+            self._tmp.name, ai_provider="groq", ai_base_url=self.url, ai_model="m-test")), NotConfiguredProvider)
         self.assertNotIn("SECRET-KEY", repr(self.settings))
 
 

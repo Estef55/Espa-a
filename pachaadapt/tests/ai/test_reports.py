@@ -92,6 +92,14 @@ class ReportServiceTests(TempContainerMixin, unittest.TestCase):
             self.c.reports.get("t2", rep["id"])
         self.assertEqual(self.c.reports.list("t2")[0]["status"], "insufficient_data")
 
+    def test_date_only_end_filter_includes_the_whole_day(self):
+        records = [L("s1", "Tema", 80, 100, "2026-03-02T12:00:00+00:00"),
+                   L("s2", "Tema", 70, 100, "2026-03-02T23:59:59+00:00"),
+                   L("s3", "Tema", 90, 100, "2026-03-03T00:00:00+00:00")]
+        self.c.configure(data_source=FakeSource(records))
+        report = self.c.reports.generate("t1", {"date_to": "2026-03-02"})
+        self.assertEqual(report["data_summary"]["records_used"], 2)
+
     def test_criteria_validation(self):
         self.c.configure(data_source=FakeSource(synthetic()))
         for bad in ({"pass_threshold_pct": 0}, {"pass_threshold_pct": "55"}, {"x": 1}, {"date_from": "ayer"},

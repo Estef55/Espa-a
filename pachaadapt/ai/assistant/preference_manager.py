@@ -95,6 +95,12 @@ class PreferenceManager:
                 )
         return self.get(teacher_id)
 
+    def clear(self, teacher_id: str) -> dict:
+        """Elimina preferencias personalizadas; futuras respuestas usan los valores por defecto."""
+        with self.db.transaction() as conn:
+            conn.execute("DELETE FROM i3_teacher_preferences WHERE teacher_id = ?", (teacher_id,))
+        return self.get(teacher_id)
+
 
 def prompt_fragment(prefs: dict) -> str:
     """Instrucciones para el asistente derivadas de las preferencias (en español)."""

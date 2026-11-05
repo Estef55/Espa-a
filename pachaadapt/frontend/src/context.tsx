@@ -52,7 +52,7 @@ export function AppProvider({children}:{children:ReactNode}){
     };
     const onRejected=(e:Event)=>{
       const d=(e as CustomEvent).detail as {status?:number;reason?:string}|undefined;
-      pushEvent(`El servidor rechazó una respuesta pendiente (${d?.reason??`código ${d?.status??"desconocido"}`}). Se descartó de la cola.`);
+      pushEvent(`El servidor rechazó una respuesta pendiente (${d?.reason??`código ${d?.status??"desconocido"}`}). Se conservó en la cola para revisión y reintento manual.`);
     };
     window.addEventListener("online",on);window.addEventListener("offline",off);
     window.addEventListener("pacha-sync-conflict",onConflict);window.addEventListener("pacha-sync-rejected",onRejected);

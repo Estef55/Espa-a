@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping, Optional
 
+from ai.env_file import load_env_file
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -33,7 +35,10 @@ class Settings:
 
 
 def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
-    env = os.environ if env is None else env
+    if env is None:
+        # Permite configuración local protegida en .env, sin sobrescribir variables del proceso.
+        load_env_file(_REPO_ROOT / ".env", os.environ)
+        env = os.environ
     return Settings(
         db_path=(env.get("PACHAADAPT_DB_PATH") or env.get("PACHAADAPT_DB") or env.get("PACHAADAPT_I3_DB")
                  or str(_REPO_ROOT / "storage" / "integrante3.sqlite3")),

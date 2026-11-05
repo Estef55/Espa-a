@@ -6,9 +6,9 @@ Frontend en React 19 + TypeScript + Vite (`frontend/`), sin dependencias nuevas.
 
 | Pantalla (`#/ruta`) | Perfil | Servicios del backend |
 |---|---|---|
-| Inicio (`inicio`) | todos | `/assignments`, `/submissions`, `/material-library`, `/ai-chat/status` (docente) |
+| Inicio (`inicio`) | todos | `/assignments`, `/submissions`, `/material-library`, `/classrooms` (aulas autorizadas en modo lectura), `/ai-chat/status` (docente) |
 | Actividades (`actividades`) | estudiante: ver y responder · docente/admin: crear, editar, buscar, filtrar | `GET/POST /assignments`, `PUT /assignments/{id}?expected_version=`, `POST /submissions` |
-| Entregas (`entregas`) | estudiante: «Mis entregas» · docente/admin: revisar, devolver, exportar CSV | `GET /submissions`, `PATCH /submissions/{id}/review` |
+| Entregas (`entregas`) | estudiante: «Mis entregas» con estado y nota validada · docente/admin: revisar, devolver, registrar nota pendiente o validar nota irreversible, exportar CSV | `GET /submissions`, `PATCH /submissions/{id}/review` (puntuación y validación solo según el contrato del backend) |
 | Catálogo (`catalogo`) | todos ven · docente/admin registran | `GET/POST /material-library` |
 | Archivos y adaptación (`materiales`) | docente | `POST /materials`, `GET /materials/{id}`, `POST …/extract`, `POST …/adapt` |
 | Documentos editables (`documentos`) | docente | `/documents` (crear, listar, guardar con `expected_version`, versiones, restaurar, archivar, importar) |
@@ -33,19 +33,20 @@ La interfaz explica «Permisos insuficientes» antes de llamar, y el servidor vu
 
 ## Funciones que dependen de la configuración del servidor
 
-El backend no conecta por sí solo estas integraciones (`configure_integrations()` no se invoca en `main.py`), por eso la interfaz las desactiva y lo explica, según `GET /ai-chat/status`:
+El backend conecta estas integraciones al iniciar (`configure_integrations()` se invoca en `main.py`), según `GET /ai-chat/status`:
 
-- **Asistente de IA**: requiere `PACHAADAPT_AI_PROVIDER=openai_compatible`, `PACHAADAPT_AI_BASE_URL` y `PACHAADAPT_AI_MODEL` (y `PACHAADAPT_AI_API_KEY` si el servicio la pide). Sin ellos no se genera ninguna respuesta.
-- **Importar documento desde el procesador**: `POST /documents/import` responde 503 hasta que se conecte un procesador documental.
-- **Generar informes**: requiere una fuente de resultados de aprendizaje; los informes ya generados se pueden consultar.
+- **Asistente de IA**: requiere un `PACHAADAPT_AI_PROVIDER` admitido (`openai_compatible`, `openai`, `groq` u `ollama`), `PACHAADAPT_AI_BASE_URL` y `PACHAADAPT_AI_MODEL` (y `PACHAADAPT_AI_API_KEY` si el servicio la pide). Sin una configuración válida no se generan respuestas.
+- **Importar documento desde material**: el adaptador reutiliza el extractor existente; la operación requiere que el material pertenezca al docente y tenga texto disponible.
+- **Generar informes**: fuente SQLite conectada. Solo muestra resultados validados que cumplen el ámbito autorizado; sin datos suficientes no se inventan estadísticas.
 - **OCR**: requiere Tesseract y Poppler y `pytesseract`/`pdf2image` en el servidor; sin ellos el backend responde 501.
 
 ## Limitaciones conocidas del contrato
 
 - No hay endpoint para **listar** los materiales subidos ni para **descargar** el original. La pantalla «Archivos y adaptación» recuerda en el navegador (por perfil) los identificadores subidos o consultados, y cada ficha se pide al servidor. El servidor conserva el original; la interfaz muestra su SHA-256 y lo compara con el del archivo local al subirlo.
 - No hay exportación de entregas en el servidor: el CSV se genera en el navegador con las entregas visibles (con protección contra fórmulas de hoja de cálculo).
-- Las entregas solo tienen los estados *entregada*, *revisada* y *devuelta*; no hay notas ni comentarios.
-- Sin implementar en el proyecto (no tienen pantalla): autenticación real, usuarios, aulas e instituciones, traducción, audio, esquemas visuales, salidas accesibles, descripción de imágenes y transcripción.
+- Entregas admiten puntuación y máximo; solo una calificación explícitamente validada se incorpora a informes y queda bloqueada frente a cambios. No hay comentarios por entrega.
+- El contrato backend tampoco permite volver a enviar una entrega revisada o devuelta y aún no ofrece reapertura; el estudiante verá el motivo y los controles de reenvío desactivados hasta que ese contrato se amplíe.
+- Sin implementar como pantallas de gestión: autenticación real, administración de usuarios, creación/inscripción a aulas e instituciones, traducción, audio, esquemas visuales, salidas accesibles, descripción de imágenes y transcripción. El inicio muestra las aulas ya asociadas al perfil, en modo solo lectura.
 - Los parámetros de `GET /preferences/adaptation-params` son una propuesta del servidor y todavía no se aplican automáticamente a las adaptaciones.
 
 ## Cambios en la capa offline (justificados)

@@ -34,6 +34,15 @@ class PreferencesTests(TempContainerMixin, unittest.TestCase):
         c2 = Container(self.settings)  # "reinicio": nueva instancia, mismo archivo
         self.assertEqual(c2.preferences.get("t1")["preferences"]["language"], "qu")
 
+    def test_clear_removes_saved_preferences_and_restores_defaults(self):
+        self.c.preferences.update("t1", {"tone": "formal", "language": "qu"})
+        cleared = self.c.preferences.clear("t1")
+        self.assertTrue(cleared["is_default"])
+        self.assertEqual(cleared["preferences"], P.DEFAULTS)
+        with self.c.db.read() as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM i3_teacher_preferences WHERE teacher_id='t1'").fetchone()[0], 0)
+        self.assertEqual(self.c.preferences.get("t2")["preferences"], P.DEFAULTS)
+
     def test_prompt_and_adaptation_params(self):
         prefs = self.c.preferences.update("t1", {"education_level": "secundaria"})["preferences"]
         self.assertIn("nivel educativo: secundaria", P.prompt_fragment(prefs))

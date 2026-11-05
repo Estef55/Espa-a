@@ -1,9 +1,10 @@
 import {useApp} from "../context";
 import {useAsync} from "../hooks/useAsync";
 import {fetchAssignments,fetchMaterials,getSubmissions} from "../services/assignments.service";
+import {fetchClassrooms} from "../services/classrooms.service";
 import {ROLE_LABEL} from "../services/auth.service";
 import {routeLabel,hrefFor,type RouteId} from "../lib/router";
-import {Loading,Notice,PageHeader,Panel} from "../components/ui";
+import {Loading,Notice,PageHeader,Panel,EmptyState,ErrorNotice} from "../components/ui";
 
 const SHORTCUTS:Record<string,{id:RouteId;text:string}[]>={
   student:[{id:"actividades",text:"Lee las actividades publicadas y envía tus respuestas."},{id:"entregas",text:"Consulta el estado de lo que ya enviaste."},{id:"catalogo",text:"Abre los materiales de estudio."},{id:"sincronizacion",text:"Revisa respuestas pendientes de envío."}],
@@ -17,6 +18,7 @@ export default function Inicio(){
   const assignments=useAsync(fetchAssignments,dep);
   const submissions=useAsync(()=>getSubmissions(),dep);
   const library=useAsync(fetchMaterials,dep);
+  const classrooms=useAsync(fetchClassrooms,dep);
   const staff=profile.role!=="student";
   const list=assignments.data?.data??[],subs=submissions.data??[];
   const stats:[string,string|number,string][]=[
@@ -48,5 +50,11 @@ export default function Inicio(){
         </ul>}
       </Panel>
     </div>
+    <Panel title={profile.role==="student"?"Mi aula":"Aulas de este perfil"} description="Listado obtenido del backend para la identidad de demostración actual.">
+      {classrooms.loading&&!classrooms.data?<Loading label="Cargando aulas…"/>:
+       classrooms.error?<ErrorNotice error={classrooms.error} onRetry={classrooms.reload}/>:
+       !classrooms.data?.length?<EmptyState title="No hay aulas asociadas a este perfil">La consulta es de solo lectura. La creación de aulas y matrículas no tiene pantalla en esta versión.</EmptyState>:
+       <ul className="plain">{classrooms.data.map(room=><li key={room.id}><strong>{room.name}</strong>{room.is_demo?" · demostración":""}</li>)}</ul>}
+    </Panel>
   </>;
 }

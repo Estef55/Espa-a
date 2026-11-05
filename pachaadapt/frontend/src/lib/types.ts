@@ -9,6 +9,8 @@ export type Assignment = {
 export type Submission = {
   id: string; assignment_id: string; student_id: string; answer: string;
   status: "submitted" | "reviewed" | "returned" | string; server_version: number;
+  score?:number|null; max_score?:number|null; validation_status?:"pending"|"validated"|"rejected"|string;
+  reviewed_at?:string|null;
   client_updated_at?: string | null; updated_at?: string; created_at?: string;
 };
 export type LibraryMaterial = {

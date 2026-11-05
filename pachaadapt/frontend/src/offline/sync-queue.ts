@@ -1,5 +1,5 @@
-import {localDB, type PendingOperation} from "./local-db";
-const API = import.meta.env.VITE_API_URL ?? "";
+import {localDB, type PendingOperation} from "./local-db.ts";
+const API = import.meta.env?.VITE_API_URL ?? "";
 let running=false;
 let retryTimer:ReturnType<typeof setTimeout>|undefined;
 const MAX_RETRY_DELAY_MS = 5 * 60 * 1000;
@@ -27,12 +27,20 @@ export async function queueSubmission(assignmentId:string,answer:string,baseVers
   if(navigator.onLine) void synchronize();
   return op.operation_id;
 }
+export async function retryRejected(operationId:string) {
+  const op=(await localDB.all()).find(item=>item.operation_id===operationId&&belongsToCurrentActor(item));
+  if(!op?.rejection)return;
+  await localDB.remove(operationId);
+  await queueSubmission(op.entity_id,op.payload.answer,op.payload.base_version);
+  window.dispatchEvent(new Event("pacha-sync-change"));
+  if(navigator.onLine)void synchronize();
+}
 export async function synchronize() {
   if(running || !navigator.onLine) return;
   running=true;window.dispatchEvent(new Event("pacha-sync-start"));
   let retryAttempts = 0;
   try {
-    for(const op of (await localDB.all()).filter(belongsToCurrentActor)) {
+    for(const op of (await localDB.all()).filter(op=>belongsToCurrentActor(op)&&!op.rejection)) {
       try {
         const response=await fetch(`${API}/api/v1/synchronization/push`,{
           method:"POST",headers:headers(),body:JSON.stringify([op]),signal:AbortSignal.timeout(12000)
@@ -40,7 +48,7 @@ export async function synchronize() {
         if(!response.ok) {
           if(response.status===409) { window.dispatchEvent(new CustomEvent("pacha-sync-conflict",{detail:{operation:op}})); continue; }
           if(response.status>=400 && response.status<500 && ![408,425,429].includes(response.status)) {
-            await localDB.remove(op.operation_id);
+            await localDB.enqueue({...op,rejection:{status:response.status,rejected_at:new Date().toISOString()}});
             window.dispatchEvent(new CustomEvent("pacha-sync-rejected",{detail:{operation:op,status:response.status}}));
             continue;
           }
@@ -50,10 +58,13 @@ export async function synchronize() {
         if(!result || !["acknowledged","rejected","conflict"].includes(result.status)) {
           throw new Error("Respuesta de sincronización no reconocida");
         }
-        if(result.status==="acknowledged" || result.status==="rejected") {
+        if(result.status==="acknowledged") {
           await localDB.remove(op.operation_id);
-          if(result.status==="rejected") window.dispatchEvent(new CustomEvent("pacha-sync-rejected",{detail:{operation:op,status:200,reason:result.reason}}));
-          if(result.status==="acknowledged") localStorage.setItem("pacha-last-sync",new Date().toISOString());
+          localStorage.setItem("pacha-last-sync",new Date().toISOString());
+        } else if(result.status==="rejected") {
+          const reason=typeof result.reason==="string"?result.reason:"server_rejected";
+          await localDB.enqueue({...op,rejection:{status:200,reason,rejected_at:new Date().toISOString()}});
+          window.dispatchEvent(new CustomEvent("pacha-sync-rejected",{detail:{operation:op,status:200,reason}}));
         } else if(result.status==="conflict") {
           window.dispatchEvent(new CustomEvent("pacha-sync-conflict",{detail:{...result,operation:op}}));
         }

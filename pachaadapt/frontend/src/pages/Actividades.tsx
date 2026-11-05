@@ -1,9 +1,11 @@
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 import {useApp} from "../context";
 import {useAsync} from "../hooks/useAsync";
 import {usePendingOps} from "../hooks/usePendingOps";
+import {clearDraft,getDraft,saveDraft} from "../offline/adaptation-store";
 import {createAssignment,createSubmission,fetchAssignments,getSubmissions,updateAssignment} from "../services/assignments.service";
 import {can} from "../lib/permissions";
+import {isSubmissionLocked} from "../lib/submissions";
 import {dateLabel,fromLocalInput,toLocalInput} from "../lib/format";
 import type {Assignment,Submission} from "../lib/types";
 import {CachedNotice,EmptyState,ErrorNotice,Field,Loading,Notice,OfflineNotice,PageHeader,StatusPill} from "../components/ui";
@@ -43,22 +45,26 @@ function AssignmentForm({initial,editing,onSaved,onCancel,onConflict}:{initial:D
   </form>;
 }
 
-function AnswerBox({assignment,previous,pending,onSent}:{assignment:Assignment;previous?:Submission;pending:boolean;onSent:(message:string)=>void}){
+function AnswerBox({assignment,previous,pending,user,onSent}:{assignment:Assignment;previous?:Submission;pending:boolean;user:string;onSent:(message:string)=>void}){
   const [text,setText]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState<Error|null>(null);
+  useEffect(()=>{let active=true;void getDraft(user,assignment.id).then(draft=>{if(active&&draft)setText(draft.answer);}).catch(()=>undefined);return()=>{active=false;};},[user,assignment.id]);
   async function send(){
     setBusy(true);setError(null);
     try{
       const result=await createSubmission(assignment.id,text.trim(),previous?.server_version??0);
+      await clearDraft(user,assignment.id).catch(()=>undefined);
       setText("");onSent(result.queued?"Respuesta guardada en este dispositivo; se enviará al recuperar la conexión.":"Respuesta recibida por el servidor.");
     }catch(err){setError(err instanceof Error?err:new Error(String(err)));}finally{setBusy(false);}
   }
+  const locked=isSubmissionLocked(previous);
   return <div className="answer">
     {previous&&<p className="hint">Última respuesta enviada ({dateLabel(previous.updated_at)}): <StatusPill status={previous.status}/> versión {previous.server_version}</p>}
+    {locked&&<Notice kind="warn">El servidor bloquea las entregas revisadas o devueltas y esta versión no tiene una acción para reabrirlas. Contacta al docente; no se intentará un reenvío que el backend rechazará.</Notice>}
     {pending&&<Notice kind="info">Tienes una respuesta pendiente de envío para esta actividad. Revisa <a href="#/sincronizacion">Conexión y sincronización</a>.</Notice>}
     <Field label={previous?"Actualizar tu respuesta":"Tu respuesta"} hint={`${text.length} / 50 000 caracteres`}>
-      <textarea rows={4} maxLength={50000} value={text} onChange={e=>setText(e.target.value)} aria-label={`Respuesta para ${assignment.title}`}/></Field>
+      <textarea rows={4} maxLength={50000} value={text} disabled={locked} onChange={e=>{const value=e.target.value;setText(value);void saveDraft(user,assignment.id,value).catch(()=>undefined);}} aria-label={`Respuesta para ${assignment.title}`}/></Field>
     {error&&<ErrorNotice error={error}/>}
-    <button className="btn btn-primary" disabled={busy||!text.trim()} onClick={()=>void send()}>{busy?"Enviando…":previous?"Actualizar respuesta":"Enviar respuesta"}</button>
+    <button className="btn btn-primary" disabled={busy||!text.trim()||locked} onClick={()=>void send()}>{busy?"Enviando…":previous?"Actualizar respuesta":"Enviar respuesta"}</button>
   </div>;
 }
 
@@ -101,7 +107,7 @@ export default function Actividades(){
         <p className="prewrap">{a.instructions||"Sin instrucciones adicionales."}</p>
         <p className="meta"><span>Fecha límite: {dateLabel(a.due_at,"sin fecha límite")}{overdue&&" (vencida)"}</span><span>Versión {a.version}</span>{staff&&a.created_by&&<span>Creada por {a.created_by}</span>}</p>
         {staff&&<div className="row"><button className="btn" disabled={!online||!canEdit(a)} onClick={()=>{setMessage("");setMode({kind:"edit",item:a});}} title={canEdit(a)?undefined:"Solo quien creó la actividad (o un administrador) puede editarla."}>Editar</button>{!canEdit(a)&&<span className="hint">Solo la persona que la creó puede editarla.</span>}</div>}
-        {student&&a.status==="published"&&<AnswerBox assignment={a} previous={bySubmission.get(a.id)} pending={pendingIds.has(a.id)} onSent={text=>{setMessage(text);subs.reload();}}/>}
+        {student&&a.status==="published"&&<AnswerBox key={`${profile.user}:${a.id}`} assignment={a} previous={bySubmission.get(a.id)} pending={pendingIds.has(a.id)} user={profile.user} onSent={text=>{setMessage(text);subs.reload();}}/>}
       </li>;})}</ul>}
   </>;
 }

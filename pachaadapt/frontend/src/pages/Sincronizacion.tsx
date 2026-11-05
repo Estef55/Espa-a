@@ -2,7 +2,7 @@ import {useMemo,useState} from "react";
 import {useApp} from "../context";
 import {useAsync} from "../hooks/useAsync";
 import {usePendingOps} from "../hooks/usePendingOps";
-import {synchronize,queueSubmission} from "../offline/sync-queue";
+import {retryRejected,synchronize,queueSubmission} from "../offline/sync-queue";
 import {localDB} from "../offline/local-db";
 import {fetchAssignments,getSubmissions} from "../services/assignments.service";
 import {getServerSyncStatus,pullChanges} from "../services/sync.service";
@@ -63,10 +63,11 @@ export default function Sincronizacion(){
         {!student&&<span className="hint">La cola solo existe para el perfil Estudiante.</span>}</div>
     </Panel>
     {conflicts.length>0&&<Panel title="Conflictos por resolver"><ul className="cards">{conflicts.map(c=><ConflictCard key={c.operation.operation_id} conflict={c}/>)}</ul></Panel>}
+    {ops.some(o=>o.rejection)&&<Notice kind="warn">El servidor rechazó algunas respuestas. Se conservan en este dispositivo y no se reintentarán automáticamente; revisa el motivo y pulsa «Volver a intentar» cuando corresponda.</Notice>}
     <Panel title="Cola pendiente">
       {!ops.length?<p className="hint">No hay respuestas pendientes para este perfil.</p>:
-      <div className="table-wrap"><table className="data"><caption className="sr-only">Respuestas pendientes de envío</caption><thead><tr><th scope="col">Actividad</th><th scope="col">Guardada</th><th scope="col">Intentos</th><th scope="col">Respuesta</th></tr></thead>
-        <tbody>{ops.map(o=><tr key={o.operation_id}><th scope="row">{titles.get(o.entity_id)??o.entity_id}</th><td>{dateLabel(o.created_at)}</td><td>{o.attempts}</td><td className="clip">{o.payload.answer}</td></tr>)}</tbody></table></div>}
+      <div className="table-wrap"><table className="data"><caption className="sr-only">Respuestas pendientes de envío</caption><thead><tr><th scope="col">Actividad</th><th scope="col">Guardada</th><th scope="col">Intentos</th><th scope="col">Respuesta / estado</th><th scope="col">Acción</th></tr></thead>
+        <tbody>{ops.map(o=><tr key={o.operation_id}><th scope="row">{titles.get(o.entity_id)??o.entity_id}</th><td>{dateLabel(o.created_at)}</td><td>{o.attempts}</td><td className="clip">{o.payload.answer}{o.rejection&&<p className="hint">Rechazo HTTP {o.rejection.status}{o.rejection.reason?`: ${o.rejection.reason}`:""}</p>}</td><td>{o.rejection&&<button className="btn btn-quiet" disabled={!online||busy!==""} onClick={()=>void run(`retry:${o.operation_id}`,async()=>{await retryRejected(o.operation_id);})}>{busy===`retry:${o.operation_id}`?"Reintentando…":"Volver a intentar"}</button>}</td></tr>)}</tbody></table></div>}
     </Panel>
     {events.length>0&&<Panel title="Avisos recientes"><ul className="plain">{events.map(e=><li key={e.id}>{dateLabel(e.at)}: {e.text}</li>)}</ul></Panel>}
     <Panel title="Servidor" description="Consulta directa a los endpoints de sincronización.">

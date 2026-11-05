@@ -5,6 +5,8 @@ export type PendingOperation = {
   payload: {assignment_id:string;answer:string;base_version:number;client_updated_at:string}; created_at: string; attempts: number;
   /** Perfil que creó la operación. Opcional: las operaciones guardadas por versiones anteriores no lo tienen. */
   actor?: {id:string;role:string};
+  /** A non-retriable server rejection retained until the student explicitly retries it. */
+  rejection?: {status:number;reason?:string;rejected_at:string};
 };
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve,reject) => {

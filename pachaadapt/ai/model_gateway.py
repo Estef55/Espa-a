@@ -38,7 +38,8 @@ class NotConfiguredProvider:
     def generate(self, messages, max_tokens):
         raise ProviderNotConfigured(
             "No hay proveedor de IA configurado. Defina PACHAADAPT_AI_PROVIDER, "
-            "PACHAADAPT_AI_BASE_URL y PACHAADAPT_AI_MODEL (ver GUIA_EJECUCION.md)."
+            "PACHAADAPT_AI_BASE_URL y PACHAADAPT_AI_MODEL; agregue PACHAADAPT_AI_API_KEY "
+            "si el proveedor la requiere (ver CONFIGURACION_SERVICIOS_IA.md)."
         )
 
 
@@ -46,12 +47,14 @@ class OpenAICompatibleProvider:
     name = "openai_compatible"
     configured = True
 
-    def __init__(self, base_url: str, model: str, api_key: str = "", timeout: float = 30.0):
+    def __init__(self, base_url: str, model: str, api_key: str = "", timeout: float = 30.0,
+                 provider_name: str = "openai_compatible"):
         if not base_url.startswith(("http://", "https://")):
             raise ValueError("PACHAADAPT_AI_BASE_URL debe empezar por http:// o https://")
         if not model:
             raise ValueError("PACHAADAPT_AI_MODEL es obligatorio")
         self.base_url, self.model, self._api_key, self.timeout = base_url.rstrip("/"), model, api_key, timeout
+        self.name = provider_name
 
     def generate(self, messages: Sequence[dict], max_tokens: int) -> ProviderResult:
         body = json.dumps({"model": self.model, "messages": list(messages),
@@ -64,7 +67,24 @@ class OpenAICompatibleProvider:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 raw = resp.read()
         except urllib.error.HTTPError as e:
-            raise ProviderError(f"El proveedor de IA respondió con HTTP {e.code}.", upstream_status=e.code) from None
+            status = e.code
+            e.close()  # discard and close upstream body; it may contain secrets/provider internals
+            if status == 400:
+                raise ProviderError("El proveedor rechazó el modelo, los parámetros o el formato (HTTP 400). Revise la configuración.",
+                                    upstream_status=status) from None
+            if status == 401:
+                raise ProviderError("El proveedor rechazó la credencial (HTTP 401). Revise la API key configurada en el backend.",
+                                    upstream_status=status) from None
+            if status == 403:
+                raise ProviderError("El proveedor denegó la solicitud (HTTP 403). Revise permisos, acceso al modelo o cuota.",
+                                    upstream_status=status) from None
+            if status == 404:
+                raise ProviderError("No se encontró el modelo o endpoint (HTTP 404). Revise el ID del modelo y la URL base.",
+                                    upstream_status=status) from None
+            if status == 429:
+                raise ProviderError("El proveedor alcanzó un límite de solicitudes o cuota (HTTP 429). Intente más tarde.",
+                                    upstream_status=status) from None
+            raise ProviderError(f"El proveedor de IA respondió con HTTP {status}.", upstream_status=status) from None
         except urllib.error.URLError as e:
             if isinstance(e.reason, (TimeoutError, socket.timeout)):
                 raise ProviderTimeout("El proveedor de IA no respondió a tiempo.") from None
@@ -84,7 +104,16 @@ class OpenAICompatibleProvider:
 
 
 def build_provider(settings: Settings):
-    if settings.ai_provider == "openai_compatible" and settings.ai_base_url and settings.ai_model:
+    """Selecciona el adaptador compatible mediante configuración sin tocar el asistente.
+
+    Los aliases OpenAI, Groq y Ollama usan exactamente el mismo contrato HTTP;
+    cada servicio requiere su BASE_URL y modelo explícitos. No se asumen endpoints.
+    """
+    compatible_providers = {"openai_compatible", "openai", "groq", "ollama"}
+    key_required = settings.ai_provider in {"openai", "groq"}
+    if (settings.ai_provider in compatible_providers and settings.ai_base_url and settings.ai_model
+            and (not key_required or settings.ai_api_key)):
         return OpenAICompatibleProvider(settings.ai_base_url, settings.ai_model,
-                                        settings.ai_api_key, settings.ai_timeout)
+                                        settings.ai_api_key, settings.ai_timeout,
+                                        provider_name=settings.ai_provider)
     return NotConfiguredProvider()

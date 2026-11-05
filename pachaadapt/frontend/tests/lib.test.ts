@@ -7,6 +7,7 @@ import {dateLabel,formatBytes,fromLocalInput,isSafeResourceUrl,toLocalInput} fro
 import {conflictFromEvent,planResolution,type SyncConflict} from "../src/lib/conflicts.ts";
 import {loadUploads,removeUpload,upsertUpload} from "../src/lib/uploadIndex.ts";
 import {adaptationToText} from "../src/lib/quiz.ts";
+import {isSubmissionLocked} from "../src/lib/submissions.ts";
 
 test("permisos coinciden con el backend: lo docente excluye a admin y estudiante",()=>{
   for(const f of ["materials.upload","documents","chat","preferences","reports"] as const){assert.ok(can("teacher",f));assert.ok(!can("admin",f));assert.ok(!can("student",f));}
@@ -55,4 +56,11 @@ test("índice local de materiales subidos: por usuario, sin duplicados, tolera d
 test("adaptaciones a texto plano",()=>{
   assert.equal(adaptationToText("resumen"),"resumen");
   assert.equal(adaptationToText([{id:1,type:"open",question:"¿Qué?",reference_fragment:"",topic_hint:"",answer_key:null,teacher_review_required:true}]),"1. ¿Qué?");
+});
+test("el estudiante no puede reenviar entregas bloqueadas por el contrato actual",()=>{
+  assert.equal(isSubmissionLocked(),false);
+  assert.equal(isSubmissionLocked({status:"submitted"}),false);
+  assert.equal(isSubmissionLocked({status:"reviewed"}),true);
+  assert.equal(isSubmissionLocked({status:"returned"}),true);
+  assert.equal(isSubmissionLocked({status:"submitted",validation_status:"validated"}),true);
 });

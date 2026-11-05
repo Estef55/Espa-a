@@ -1,7 +1,7 @@
 import {useEffect,useState} from "react";
 import {useApp} from "../context";
 import {useAsync} from "../hooks/useAsync";
-import {getAdaptationParams,getPreferences,updatePreferences} from "../services/preferences.service";
+import {deletePreferences,getAdaptationParams,getPreferences,updatePreferences} from "../services/preferences.service";
 import {dateLabel} from "../lib/format";
 import type {PreferenceKey,Preferences} from "../lib/types";
 import {ErrorNotice,Field,Gate,Loading,Notice,OfflineNotice,PageHeader,Panel} from "../components/ui";
@@ -40,6 +40,12 @@ function Inner(){
     setParamsError(null);
     try{setParams((await getAdaptationParams()).proposed_params);}catch(err){setParamsError(err instanceof Error?err:new Error(String(err)));}
   }
+  async function clearSaved(){
+    if(!window.confirm("¿Eliminar tus preferencias personalizadas? El asistente volverá a los valores por defecto."))return;
+    setBusy(true);setError(null);setMessage("");
+    try{const r=await deletePreferences();prefs.setData(r);setForm(toForm(r.preferences));setParams(null);setMessage("Preferencias personalizadas eliminadas; se aplican los valores por defecto.");}
+    catch(err){setError(err instanceof Error?err:new Error(String(err)));}finally{setBusy(false);}
+  }
   return <>
     <OfflineNotice what="Guardar preferencias"/>
     {prefs.data.is_default&&<Notice kind="info">Aún no has guardado preferencias: se muestran los valores por defecto.</Notice>}
@@ -51,7 +57,7 @@ function Inner(){
             {(prefs.data!.allowed_values[f.key]??Object.keys(f.values)).map(v=><option key={v} value={v}>{f.values[v]??v}</option>)}
           </select></Field>)}</div>
         {error&&<ErrorNotice error={error}/>}{message&&<Notice kind="success">{message}</Notice>}
-        <div className="row"><button className="btn btn-primary" disabled={busy||!dirty||!online}>{busy?"Guardando…":"Guardar preferencias"}</button><button type="button" className="btn btn-quiet" disabled={!dirty} onClick={()=>setForm(toForm(saved))}>Descartar cambios</button></div>
+        <div className="row"><button className="btn btn-primary" disabled={busy||!dirty||!online}>{busy?"Guardando…":"Guardar preferencias"}</button><button type="button" className="btn btn-quiet" disabled={!dirty||busy} onClick={()=>setForm(toForm(saved))}>Descartar cambios</button><button type="button" className="btn btn-quiet" disabled={busy||dirty||prefs.data.is_default||!online} onClick={()=>void clearSaved()}>Eliminar preferencias guardadas</button></div>
       </form>
       <p className="hint">El asistente de IA aplica estas preferencias en sus respuestas.</p>
     </Panel>

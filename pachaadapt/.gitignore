@@ -9,4 +9,5 @@ frontend/dist/
 # Archivos locales y datos de ejecución
 storage/
 .env.*
+!.env.example
 

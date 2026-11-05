@@ -4,6 +4,7 @@ import {loadAssignments,loadMaterials,type Cached} from "../offline/cache-manage
 import {queueSubmission} from "../offline/sync-queue";
 import {apiHeaders,request,setActor,type ApiError} from "./http";
 import type {Assignment,LibraryMaterial,Role,Submission} from "../lib/types";
+export {reviewSubmission} from "./review.service";
 
 export {apiHeaders,setActor};
 export type {Role,ApiError};
@@ -23,9 +24,6 @@ export const createAssignment=(data:AssignmentInput)=>request<Assignment>("/api/
 export const updateAssignment=(id:string,data:AssignmentInput,expectedVersion:number)=>
   request<Assignment>(`/api/v1/assignments/${encodeURIComponent(id)}`,{method:"PUT",body:data,query:{expected_version:expectedVersion}});
 export const getSubmissions=(assignmentId?:string)=>request<Submission[]>("/api/v1/submissions",{query:{assignment_id:assignmentId}});
-export const reviewSubmission=(id:string,status:"reviewed"|"returned")=>
-  request<Submission>(`/api/v1/submissions/${encodeURIComponent(id)}/review`,{method:"PATCH",query:{status}});
-
 export type SubmissionOutcome={queued:true;operation_id:string}|(Submission&{queued?:false});
 /** Envía la respuesta; sin conexión (o si falla la red) la guarda en la cola local para sincronizarla después. */
 export async function createSubmission(assignmentId:string,answer:string,baseVersion=0):Promise<SubmissionOutcome>{

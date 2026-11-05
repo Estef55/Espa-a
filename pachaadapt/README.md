@@ -52,13 +52,14 @@ python -m uvicorn --app-dir backend app.main:app --reload
 - Catálogo de recursos, asignaciones, entregas y revisión docente del integrante 4.
 - PWA con IndexedDB, caché de recursos same-origin, cola offline, reintentos y manejo de conflictos.
 - Módulos de preferencias, documentos, chat e informes del integrante 3.
+- Panel inicial con aulas autorizadas de solo lectura y revisión docente con calificaciones explícitas/validadas.
 - Copias de seguridad y restauración de SQLite.
 
 El catálogo de recursos (URLs) usa `/api/v1/material-library`; la carga de archivos PDF/TXT permanece en `/api/v1/materials`, de modo que ambas interfaces no colisionen. El usuario de demostración se selecciona en el frontend; esos encabezados no son autenticación de producción.
 
 ## Interfaz
 
-La interfaz (`frontend/`) da acceso visual a las funciones implementadas: actividades, entregas, catálogo, carga y adaptación de PDF/TXT, documentos con versiones, asistente, preferencias, informes y sincronización offline. Las funciones que dependen de configuración del servidor (IA, procesador documental, fuente de informes) se muestran desactivadas con su explicación. Detalle de pantallas, permisos y límites: `docs/frontend_interfaz.md`.
+La interfaz (`frontend/`) da acceso visual a las funciones implementadas: actividades, entregas, catálogo, carga y adaptación de PDF/TXT, documentos con versiones, asistente, preferencias, informes y sincronización offline. Los informes consultan resultados revisados y validados en la base compartida; si no existen datos suficientes no se inventan estadísticas. Para habilitar el Asistente de IA en desarrollo, copia `.env.example` a `.env`, añade la API key en backend y reinicia; ver `CONFIGURACION_SERVICIOS_IA.md`. Las aulas y membresías tienen endpoints backend; el inicio muestra solo las aulas autorizadas y no ofrece administración de matrículas. Detalle: `docs/frontend_interfaz.md`; integración I3/I4: `INFORME_INTEGRACION_I3_I4.md`; cambios I1: `INFORME_INTEGRANTE1_FRONTEND.md`.
 
 ## Persistencia y migraciones
 

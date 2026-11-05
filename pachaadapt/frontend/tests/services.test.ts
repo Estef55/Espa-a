@@ -4,10 +4,12 @@ import assert from "node:assert/strict";
 import {setActor} from "../src/services/http.ts";
 import {adaptMaterial,extractMaterial,getUploadedMaterial,uploadMaterial,validateUpload} from "../src/services/materials.service.ts";
 import {archiveDocument,createDocument,getVersion,importDocument,listDocuments,restoreVersion,saveDocument} from "../src/services/documents.service.ts";
-import {getAdaptationParams,updatePreferences} from "../src/services/preferences.service.ts";
-import {getAiStatus,getConversation,sendChat} from "../src/services/ai.service.ts";
+import {deletePreferences,getAdaptationParams,updatePreferences} from "../src/services/preferences.service.ts";
+import {getAiStatus,getConversation,saveAssistantProposal,sendChat} from "../src/services/ai.service.ts";
 import {createReport,getReportMarkdown,listReports} from "../src/services/reports.service.ts";
 import {getServerSyncStatus,pullChanges} from "../src/services/sync.service.ts";
+import {reviewSubmission} from "../src/services/review.service.ts";
+import {fetchClassrooms} from "../src/services/classrooms.service.ts";
 import {loadProfile,saveProfile} from "../src/services/auth.service.ts";
 
 type Call={method:string;path:string;search:string;body:unknown;headers:Record<string,string>};
@@ -53,7 +55,8 @@ test("documentos: crear, guardar con versión esperada, restaurar, archivar, imp
 test("preferencias: PUT solo con lo modificado; parámetros propuestos",async()=>{
   const calls=record({});
   await updatePreferences({tone:"formal",education_level:null});assert.deepEqual([calls[0].method,calls[0].body],["PUT",{tone:"formal",education_level:null}]);
-  await getAdaptationParams();assert.equal(calls[1].path,"/api/v1/preferences/adaptation-params");
+  await deletePreferences();assert.deepEqual([calls[1].method,calls[1].path,calls[1].body],["DELETE","/api/v1/preferences",undefined]);
+  await getAdaptationParams();assert.equal(calls[2].path,"/api/v1/preferences/adaptation-params");
 });
 test("asistente: estado, chat con contexto y conversación",async()=>{
   const calls=record({});
@@ -61,6 +64,8 @@ test("asistente: estado, chat con contexto y conversación",async()=>{
   await sendChat("¿Qué dice?");assert.deepEqual(calls[1].body,{question:"¿Qué dice?"});
   await sendChat("otra","c1","d1");assert.deepEqual(calls[2].body,{question:"otra",conversation_id:"c1",document_id:"d1"});
   await getConversation("c1");assert.equal(calls[3].path,"/api/v1/ai-chat/conversations/c1");
+  await saveAssistantProposal("Propuesta docente revisada","Contenido que el docente revisó.");
+  assert.deepEqual([calls[4].method,calls[4].path,calls[4].body],["POST","/api/v1/documents",{title:"Propuesta docente revisada",content:"Contenido que el docente revisó."}]);
 });
 test("informes: criterios sin vacíos (el backend rechaza claves desconocidas), lista y markdown",async()=>{
   let calls=record({});
@@ -80,4 +85,21 @@ test("identidad: el perfil guardado inválido vuelve al de demostración",()=>{
   saveProfile({role:"teacher",user:"profe.1"},st);assert.deepEqual(loadProfile(st),{role:"teacher",user:"profe.1"});
   st.setItem("pacha-user","con espacios");assert.equal(loadProfile(st).user,"demo-teacher");
   st.setItem("pacha-role","superusuario");assert.equal(loadProfile(st).role,"student");
+});
+
+test("revisión de entrega envía nota y validación explícita en el contrato del backend",async()=>{
+  const calls=record({id:"s1",status:"reviewed",score:8,max_score:10,validation_status:"validated"});
+  await reviewSubmission("sub 1",{status:"reviewed",score:8,max_score:10,validation_status:"validated"});
+  assert.deepEqual([calls[0].method,calls[0].path,calls[0].search],[
+    "PATCH","/api/v1/submissions/sub%201/review",
+    "?status=reviewed&score=8&max_score=10&validation_status=validated",
+  ]);
+});
+
+test("aulas: consulta el espacio del perfil al endpoint de solo lectura",async()=>{
+  const calls=record([{id:"class-1",name:"Aula de prueba",teacher_id:"demo-teacher"}]);
+  const rows=await fetchClassrooms();
+  assert.equal(calls[0].method,"GET");
+  assert.equal(calls[0].path,"/api/v1/classrooms");
+  assert.equal(rows[0].name,"Aula de prueba");
 });

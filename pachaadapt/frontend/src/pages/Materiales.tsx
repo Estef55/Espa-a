@@ -1,9 +1,10 @@
-import {useState} from "react";
+import {useEffect,useState} from "react";
 import {useApp} from "../context";
 import {adaptMaterial,extractMaterial,getUploadedMaterial,MATERIAL_ID,uploadMaterial,validateUpload} from "../services/materials.service";
 import {createDocument} from "../services/documents.service";
 import {loadUploads,removeUpload,upsertUpload} from "../lib/uploadIndex";
 import {sha256Hex} from "../lib/hash";
+import {getAdaptation,saveAdaptation} from "../offline/adaptation-store";
 import {ADAPTATION_LABEL,adaptationToText} from "../lib/quiz";
 import {dateLabel,formatBytes} from "../lib/format";
 import type {AdaptationKind,AdaptationResult,ExtractionResult,UploadedMaterial} from "../lib/types";
@@ -12,11 +13,12 @@ import {EmptyState,ErrorNotice,Field,Gate,Notice,OfflineNotice,PageHeader,Panel}
 const asError=(e:unknown)=>e instanceof Error?e:new Error(String(e));
 
 function Detail({material,onUpdated,onRemove}:{material:UploadedMaterial;onUpdated:(m:UploadedMaterial)=>void;onRemove:()=>void}){
-  const {online}=useApp();
+  const {online,profile}=useApp();
   const [ocr,setOcr]=useState(false);
   const [extracted,setExtracted]=useState<ExtractionResult|null>(null);const [text,setText]=useState("");
   const [kind,setKind]=useState<AdaptationKind>("summary");const [amount,setAmount]=useState({summary:5,easy_read:22,quiz:5});const [useEdited,setUseEdited]=useState(false);
   const [adapted,setAdapted]=useState<AdaptationResult|null>(null);
+  useEffect(()=>{let active=true;setAdapted(null);void getAdaptation(profile.user,material.id,kind).then(record=>{if(active&&record)setAdapted(record.content as AdaptationResult);}).catch(()=>undefined);return()=>{active=false;};},[profile.user,material.id,kind]);
   const [busy,setBusy]=useState<""|"refresh"|"extract"|"adapt"|"save">("");const [error,setError]=useState<Error|null>(null);const [message,setMessage]=useState("");
 
   async function run(name:typeof busy,job:()=>Promise<void>){setBusy(name);setError(null);setMessage("");try{await job();}catch(e){setError(asError(e));}finally{setBusy("");}}
@@ -28,7 +30,9 @@ function Detail({material,onUpdated,onRemove}:{material:UploadedMaterial;onUpdat
   });
   const adapt=()=>run("adapt",async()=>{
     const options=kind==="summary"?{max_sentences:amount.summary}:kind==="easy_read"?{max_words:amount.easy_read}:{count:amount.quiz};
-    setAdapted(await adaptMaterial(material.id,kind,{...options,ocr,...(useEdited&&text.trim()?{text}:{})}));
+    const result=await adaptMaterial(material.id,kind,{...options,ocr,...(useEdited&&text.trim()?{text}:{})});
+    await saveAdaptation(profile.user,material.id,kind,result,result.review_required);
+    setAdapted(result);
   });
   const saveAsDocument=()=>run("save",async()=>{
     if(!adapted)return;
@@ -129,7 +133,7 @@ function Inner(){
       {!items.length?<EmptyState title="Todavía no hay archivos en la lista">Sube un archivo o consulta uno por identificador.</EmptyState>:
       <ul className="picklist">{items.map(i=><li key={i.id}><button className={`pick ${i.id===selected?"active":""}`} aria-pressed={i.id===selected} onClick={()=>setSelected(i.id)}><strong>{i.filename}</strong><span className="hint">{formatBytes(i.size)} · {dateLabel(i.created_at)}</span></button></li>)}</ul>}
     </Panel>
-    {current&&<Detail key={current.id} material={current} onUpdated={remember} onRemove={()=>{setItems(removeUpload(profile.user,current.id));setSelected(null);}}/>}
+    {current&&<Detail key={`${profile.user}:${current.id}`} material={current} onUpdated={remember} onRemove={()=>{setItems(removeUpload(profile.user,current.id));setSelected(null);}}/>}
     <Panel title="Todavía no disponible" description="Estas capacidades aparecen en el diseño del proyecto, pero su código aún no está implementado, por eso no tienen botón.">
       <ul className="plain"><li>Traducción y adaptación lingüística (incluido quechua)</li><li>Generación de audio y narración</li><li>Esquemas y organizadores visuales</li><li>Salidas accesibles adicionales</li><li>Descripción de imágenes y transcripción de audio o video</li><li>Listado de materiales en el servidor y descarga del original</li></ul>
     </Panel>

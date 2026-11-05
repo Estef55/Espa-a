@@ -34,6 +34,12 @@ def put_preferences(body: PreferencesIn, p: Principal = Depends(principal)):
     return run(get_container().preferences.update, p.user_id, body.model_dump(exclude_unset=True))
 
 
+@router.delete("")
+def delete_preferences(p: Principal = Depends(principal)):
+    """Borra preferencias personalizadas del docente y vuelve a defaults."""
+    return run(get_container().preferences.clear, p.user_id)
+
+
 @router.get("/adaptation-params")
 def adaptation_params(p: Principal = Depends(principal)):
     """Parámetros PROPUESTOS para una solicitud de adaptación (contrato pendiente con el integrante 2)."""

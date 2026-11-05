@@ -3,11 +3,11 @@
 ## Estado real por funcionalidad
 | Funcionalidad | Estado | Qué falta |
 |---|---|---|
-| **A. Asistente de IA** (`ai/assistant/chat_service.py`, `ai/model_gateway.py`) | Implementado y probado contra un servidor HTTP local de prueba. Sin proveedor → 503 controlado, sin simulación | Probar con un proveedor real; interfaz |
-| **B. Documentos y versiones** (`document_builder.py`, `revision_manager.py`) | Implementado y probado: persistencia, historial, restauración, conflictos, permisos, archivado | Conexión con el procesador del integrante 2 (puerto listo); interfaz |
-| **C. Preferencias** (`preference_manager.py`) | Implementado y probado | Que el integrante 2 acepte los parámetros propuestos; interfaz |
-| **D. Análisis e informes** (`ai/learning_analysis/*`, `report_service.py`) | Implementado y probado con datos **sintéticos de prueba**; sin fuente real → 503 | Una fuente real de resultados; exportar a PDF/Word (hoy JSON y Markdown) |
-| **E. Integración** | Asistente ← preferencias y documentos; informes ← puerto de datos; routers montados en `main.py` | Frontend; verificar con FastAPI real |
+| **A. Asistente de IA** (`ai/assistant/chat_service.py`, `ai/model_gateway.py`, interfaz) | Implementado; proveedor intercambiable por configuración, historial propietario, preferencias y documento propio como contexto; sin proveedor → 503 controlado | Probar con un proveedor remoto real; credencial/endpoint no disponibles en esta entrega |
+| **B. Documentos y versiones** (`document_builder.py`, `revision_manager.py`, interfaz) | Persistencia, historial, restauración, conflictos y permisos probados; borrador local IndexedDB y conflicto explícito; integración material→documento conectada | El guardado de borradores no se sincroniza automáticamente; confirmar en línea |
+| **C. Preferencias** (`preference_manager.py`, interfaz) | Consulta, actualización, aislamiento y eliminación/restauración a defaults implementados | Integrar identidad institucional real |
+| **D. Análisis e informes** (`ai/learning_analysis/*`, `report_service.py`, interfaz) | Cálculo y validación probados con fixtures; sin fuente real → 503; no se presentan fixtures como resultados reales | Conectar fuente autorizada con calificaciones revisadas; solo JSON y Markdown |
+| **E. Integración** | Asistente ← preferencias/documentos; documentos ← materiales del integrante 2; rutas verificadas con FastAPI real y SQLite temporal | Proveedor remoto, origen de calificaciones y autenticación institucional pendientes |
 
 ## Arquitectura (dependencia en un solo sentido: backend → ai)
 ```
@@ -60,11 +60,12 @@ Decisiones provisionales y reemplazables: **SQLite** propio (no impone motor; ca
 Errores: `{"detail": {"code", "message", ...}}`. Sin autenticación configurada: 503 `auth_not_configured`.
 
 ## Persistencia
-`database/migrations/001_integrante3.sql` (incremental, solo `CREATE ... IF NOT EXISTS`, tablas `i3_*`). Se aplica sola al primer uso, sobre **su propio archivo** (`PACHAADAPT_I3_DB`, por defecto `storage/integrante3.sqlite3`). `database/schema.sql` no se tocó.
+`database/migrations/001_integrante3.sql` (incremental, solo `CREATE ... IF NOT EXISTS`, tablas `i3_*`). La migración de integrante 3 usa la ruta SQLite configurada con `PACHAADAPT_DB_PATH` (compatibilidad: `PACHAADAPT_DB`, `PACHAADAPT_I3_DB`); el backend comparte esa base con los módulos integrados. Si no se define, el valor predeterminado es `storage/integrante3.sqlite3`. `database/schema.sql` es documento de referencia, no se sustituyó.
 
 ## Limitaciones conocidas
-- **Rutas HTTP no probadas con FastAPI real** (no disponible al desarrollar): se probaron las funciones de ruta con un doble de FastAPI. Falta verificar validación de cuerpos y códigos HTTP reales.
-- Sin frontend del integrante 3. Sin proveedor de IA real ni datos reales.
-- Informes solo en JSON y Markdown.
+- Prueba HTTP con `TestClient`, SQLite temporal y almacenamiento temporal ejecutada: health, estado, ausencia de proveedor/fuente, propiedad, actualización y conflicto de versiones; flujo material TXT → documento y rechazo por propiedad también comprobados.
+- Hay interfaz React funcional de integrante 3 (`Asistente`, `Documentos`, `Preferencias`, `Informes`); no se hizo una prueba visual de navegador ni con varios dispositivos.
+- No hay proveedor de IA real ni fuente real de calificaciones en esta entrega.
+- Informes solo en JSON y Markdown; no se ofrece PDF/Word.
 - Sin endpoint para listar o borrar conversaciones.
 - El umbral por defecto (55 %) es un criterio ajustable, no una norma validada.

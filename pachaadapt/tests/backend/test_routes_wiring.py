@@ -45,7 +45,7 @@ class RouteTests(unittest.TestCase):
         register_integrante3(app)
         got = [(m, r.path) for r in app.routes for m in r.methods]
         self.assertEqual(len(got), len(set(got)), "rutas duplicadas")
-        for expected in [("GET", "/api/v1/preferences"), ("PUT", "/api/v1/preferences"),
+        for expected in [("GET", "/api/v1/preferences"), ("PUT", "/api/v1/preferences"), ("DELETE", "/api/v1/preferences"),
                          ("POST", "/api/v1/documents"), ("POST", "/api/v1/documents/import"),
                          ("PUT", "/api/v1/documents/{document_id}"),
                          ("GET", "/api/v1/documents/{document_id}/versions"),
@@ -63,9 +63,27 @@ class RouteTests(unittest.TestCase):
         for expected in ("/api/v1/preferences", "/api/v1/documents", "/api/v1/ai-chat", "/api/v1/reports"):
             self.assertIn(expected, paths)
 
+    def test_delete_preferences_is_allowed_by_cors_preflight(self):
+        from fastapi.testclient import TestClient
+        from app.main import app
+        response = TestClient(app).options(
+            "/api/v1/preferences",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "DELETE",
+                "Access-Control-Request-Headers": "x-user-id",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("DELETE", response.headers.get("access-control-allow-methods", ""))
+
     def test_principal_dependency(self):
+        from unittest.mock import patch
         req = SimpleNamespace(headers={"x-user": "t7"})
-        self.assertEqual(self.code(_deps.principal, req), (503, "auth_not_configured"))
+        # La suite de flujos puede habilitar autenticación demo a nivel de módulo;
+        # esta prueba verifica el comportamiento con el modo demo explícitamente apagado.
+        with patch.dict("os.environ", {"PACHAADAPT_I3_DEV_AUTH": "0"}):
+            self.assertEqual(self.code(_deps.principal, req), (503, "auth_not_configured"))
         identity.set_identity_resolver(lambda h: identity.Principal(h["x-user"]))
         self.assertEqual(_deps.principal(req).user_id, "t7")
 
@@ -76,6 +94,9 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.code(preferences.put_preferences, preferences.PreferencesIn(tone="loco"), P1),
                          (422, "validation_error"))
         self.assertEqual(preferences.adaptation_params(P1)["proposed_params"]["tone"], "formal")
+        deleted = preferences.delete_preferences(P1)
+        self.assertTrue(deleted["is_default"])
+        self.assertEqual(deleted["preferences"], preferences.prefs_mod.DEFAULTS)
 
     def test_documents_routes_full_flow(self):
         d = documents.create_document(documents.DocumentCreate(title="Guía", content="uno"), P1)

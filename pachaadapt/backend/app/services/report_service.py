@@ -7,6 +7,7 @@ Sin fuente de datos conectada -> 503 controlado. Este servicio no genera ni simu
 from __future__ import annotations
 
 import json
+from datetime import timedelta, timezone
 from typing import Optional, Protocol, Sequence
 
 from app.core import paths  # noqa: F401  (habilita "import ai")
@@ -19,7 +20,11 @@ from ai.storage import Database
 
 class LearningDataSource(Protocol):
     def fetch_records(self, teacher_id: str, filters: dict) -> Sequence[LearningRecord]:
-        """Devuelve SOLO resultados que ``teacher_id`` está autorizado a ver, con ``student_ref`` opaco."""
+        """Devuelve SOLO resultados autorizados, confirmados y con calificación real; student_ref debe ser opaco."""
+
+
+def _utc(value):
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 class ReportService:
@@ -46,11 +51,16 @@ class ReportService:
         if crit["group"]:
             valid = [r for r in valid if r.group == crit["group"]]
         if crit["date_from"]:
-            lo = ra.parse_dt(crit["date_from"])
-            valid = [r for r in valid if ra.parse_dt(r.recorded_at) >= lo]
+            lo = _utc(ra.parse_dt(crit["date_from"]))
+            valid = [r for r in valid if _utc(ra.parse_dt(r.recorded_at)) >= lo]
         if crit["date_to"]:
-            hi = ra.parse_dt(crit["date_to"])
-            valid = [r for r in valid if ra.parse_dt(r.recorded_at) <= hi]
+            end_value = crit["date_to"]
+            hi = _utc(ra.parse_dt(end_value))
+            if len(end_value) == 10:  # date-only filters include that whole calendar day
+                hi += timedelta(days=1)
+                valid = [r for r in valid if _utc(ra.parse_dt(r.recorded_at)) < hi]
+            else:
+                valid = [r for r in valid if _utc(ra.parse_dt(r.recorded_at)) <= hi]
         report = ar.build_report(crit, len(received), invalid, valid,
                                  type(self.data_source).__name__, self.provider)
         with self.db.transaction() as conn:
