@@ -19,3 +19,28 @@ def extract_scanned_pdf_text(source: Union[str, Path, bytes], languages: str = "
         if text:
             chunks.append(f"[Página {i}]\n{text}")
     return "\n\n".join(chunks).strip()
+
+
+def ocr_status(languages: str | None = None) -> dict:
+    """Informa si el OCR puede ejecutarse AHORA en este servidor y por qué no, si no puede."""
+    import os
+    import shutil
+    languages = languages or os.getenv("PACHAADAPT_OCR_LANGS", "spa")
+    try:
+        import pytesseract
+        import pdf2image  # noqa: F401
+    except ImportError:
+        return {"available": False, "languages": languages, "reason": "Faltan los paquetes Python pytesseract y pdf2image."}
+    if not shutil.which("tesseract"):
+        return {"available": False, "languages": languages, "reason": "No está instalado el programa Tesseract."}
+    if not shutil.which("pdftoppm"):
+        return {"available": False, "languages": languages, "reason": "No está instalado Poppler (pdftoppm)."}
+    try:
+        installed = set(pytesseract.get_languages(config=""))
+    except Exception:
+        installed = set()
+    missing = [l for l in languages.split("+") if installed and l not in installed]
+    if missing:
+        return {"available": False, "languages": languages,
+                "reason": f"Tesseract no tiene el idioma «{', '.join(missing)}» (instalados: {', '.join(sorted(installed))})."}
+    return {"available": True, "languages": languages, "reason": None}

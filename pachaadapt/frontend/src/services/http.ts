@@ -99,3 +99,18 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 export function errorMessage(error: unknown, fallback = "Ocurrió un error inesperado."): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
+
+/** Descarga binaria (original, audio, exportaciones). Mismos errores normalizados que `request`. */
+export async function requestBlob(path: string, opts: { timeoutMs?: number } = {}): Promise<{ blob: Blob; filename: string | null }> {
+  const url = new URL(`${API}${path}`, typeof window === "undefined" ? "http://localhost" : window.location.origin);
+  let response: Response;
+  try {
+    response = await fetch(url, { headers: identityHeaders(), signal: AbortSignal.timeout(opts.timeoutMs ?? 120000) });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") throw new ApiError(FALLBACK_MESSAGE.timeout, 0, "timeout", "timeout");
+    throw networkError();
+  }
+  if (!response.ok) throw await toApiError(response);
+  const match = /filename="?([^";]+)"?/.exec(response.headers.get("Content-Disposition") ?? "");
+  return { blob: await response.blob(), filename: match ? match[1] : null };
+}

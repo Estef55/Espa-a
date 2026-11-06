@@ -63,3 +63,14 @@ def review(record: ValidationRecord, text: str, reviewer_id: str, reviewer_role:
                            "at": datetime.now(timezone.utc).isoformat()})
     record.status, record.reviewer_id, record.reviewer_role, record.comment = status, reviewer_id, reviewer_role, comment.strip()
     return record
+
+
+# Avisos de validación humana que acompañan a los materiales adaptados.
+GENERAL_NOTICE = ("Las adaptaciones se generan con reglas locales y no sustituyen la revisión docente. "
+                  "Revisa fidelidad, nivel y pertinencia cultural antes de usarlas con estudiantes.")
+
+
+def review_notice(language: str = "es") -> str:
+    if language != "es":
+        return GENERAL_NOTICE + " Los contenidos en otras lenguas deben validarse con hablantes competentes de la comunidad."
+    return GENERAL_NOTICE

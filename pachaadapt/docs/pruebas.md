@@ -45,3 +45,6 @@ Comprueba que se creó un archivo en `backups`. Para probar restauración, deté
 python scripts/restore.py backups\NOMBRE_DE_LA_COPIA.sqlite3
 ```
 La base anterior se guarda con extensión `.before-restore`.
+
+## Integrante 2 (materiales y adaptaciones guardadas)
+`python -m unittest discover -s tests/integrante2 -t .` (38 pruebas; 3 de ellas, las HTTP de extremo a extremo, requieren FastAPI y se omiten sin él) y `cd frontend && npm test` (incluye `tests/materials.test.ts`).

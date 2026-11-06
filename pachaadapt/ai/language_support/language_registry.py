@@ -84,3 +84,17 @@ def default_registry() -> LanguageRegistry:
 
 
 REGISTRY = default_registry()
+
+
+# Resumen estático de qué se puede hacer con cada idioma en el flujo de materiales guardados (capabilities).
+LANGUAGES = {
+    "es": {"name": "Español", "interface": True, "material_processing": True, "machine_translation": False,
+           "note": "Idioma de origen de los materiales de demostración y de las reglas de adaptación."},
+    "qu": {"name": "Quechua", "interface": True, "material_processing": False, "machine_translation": False,
+           "note": "La variedad de quechua se definirá con la comunidad piloto. Hoy solo existe la interfaz; "
+                   "no hay adaptación ni traducción de materiales a quechua."},
+}
+
+
+def list_languages() -> list[dict]:
+    return [{"code": code, **info} for code, info in LANGUAGES.items()]

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.register import register_integrante3
+from app.api.v1.register_integrante2 import register_integrante2  # integrante 2: adaptaciones guardadas
 from app.api.v1.materials import router as materials_router
 from app.api.v1.adaptations import router as adaptations_router  # integrante 2
 from app.api.v1.assignments import router as assignments_router
@@ -53,6 +54,7 @@ def health():
 register_integrante3(app)
 app.include_router(materials_router, prefix="/api/v1")
 app.include_router(adaptations_router, prefix="/api/v1")  # integrante 2
+register_integrante2(app)  # integrante 2: /materials/{id}/adaptations… (consulta, revisión, vínculos, exportación, audio)
 app.include_router(assignments_router, prefix="/api/v1")
 app.include_router(classrooms_router, prefix="/api/v1")
 app.include_router(submissions_router, prefix="/api/v1")

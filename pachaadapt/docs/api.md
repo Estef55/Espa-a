@@ -38,3 +38,21 @@ protegida responde 503/401 según el módulo. No es autenticación de producció
 - `/material-library`: catálogo de recursos URL del integrante 4; estudiantes ven solo publicados, docentes solo propios.
 
 Los endpoints de materiales, documentos, preferencias y chat del integrante 3 mantienen sus contratos existentes. Consultar `/docs` para el OpenAPI efectivo.
+
+## Materiales y adaptaciones guardadas (Integrante 2)
+Solo docente; cada docente ve únicamente lo suyo (otro docente → 404).
+
+| Método y ruta | Descripción |
+|---|---|
+| `GET /api/v1/materials` | Lista con estado de procesamiento |
+| `GET /api/v1/materials/capabilities` | Qué ofrece realmente el servidor (OCR, audio, adaptaciones) |
+| `GET /api/v1/materials/{id}/original` | Archivo original sin modificar |
+| `GET /api/v1/materials/{id}/text` | Texto organizado en bloques |
+| `POST /api/v1/materials/{id}/extract` / `/adapt` | Extraer / generar y **guardar** una adaptación |
+| `GET /api/v1/materials/{id}/adaptations[/{aid}]` | Adaptaciones guardadas |
+| `POST …/adaptations/{aid}/review` | `{approved}` revisión docente |
+| `POST …/adaptations/{aid}/links` | `{target_type: document\|assignment, target_id}` |
+| `GET …/adaptations/{aid}/export?format=html\|txt` | Descarga etiquetada |
+| `GET …/adaptations/{aid}/audio` | WAV (solo si hay motor de voz) |
+
+Las rutas sin estado de `/api/v1/adaptations/...` (organizadores, Braille, audio con guion, traducción con proveedor, imágenes, subtítulos) siguen funcionando igual; las de arriba son adicionales y no las reemplazan.

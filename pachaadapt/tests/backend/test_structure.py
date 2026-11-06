@@ -37,7 +37,7 @@ class StructureTests(TempContainerMixin, unittest.TestCase):
         self.assertEqual(MIGRATIONS_DIR, ROOT / "database" / "migrations")
         self.assertTrue((MIGRATIONS_DIR / "001_integrante3.sql").is_file())
         db = Database(self.settings.db_path)
-        self.assertEqual(db.migrate(), ["001_integrante3", "002_integrante2_materiales"])
+        self.assertEqual(db.migrate(), ["001_integrante3", "002_integrante2_materiales", "003_integrante2_adaptaciones"])
         self.assertEqual(db.migrate(), [])
         conn = sqlite3.connect(self.settings.db_path)
         names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}

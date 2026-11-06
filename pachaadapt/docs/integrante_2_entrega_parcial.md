@@ -37,3 +37,6 @@ Para OCR escaneado se necesita instalar además `pytesseract` y `pdf2image`, jun
 - El OCR no se activa automáticamente por defecto para evitar dependencias externas y latencias inesperadas.
 - El generador crea preguntas abiertas basadas en fragmentos, sin claves de respuesta automáticas.
 - Esta entrega no implementa todavía audio, descripción de imágenes, transcripción audiovisual, mapas visuales, traducción ni compatibilidad Braille avanzada.
+
+---
+**Actualización:** el estado final, las limitaciones y las pruebas del Integrante 2 están en `docs/integrante2/INFORME_INTEGRANTE_2.md`.

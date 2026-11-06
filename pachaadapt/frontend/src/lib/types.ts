@@ -22,7 +22,7 @@ export type UploadedMaterial = {
   extracted_at: string | null; created_at: string;
 };
 export type ExtractionResult = { material_id: string; text: string; characters: number; ocr_used: boolean };
-export type AdaptationKind = "summary" | "easy_read" | "quiz";
+export type AdaptationKind = "summary" | "easy_read" | "quiz" | "outline" | "image_notes" | "audio";
 export type QuizQuestion = {
   id: number; type: string; question: string; reference_fragment: string; topic_hint: string;
   answer_key: string | null; teacher_review_required: boolean;
